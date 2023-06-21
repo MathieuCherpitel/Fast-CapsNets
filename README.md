@@ -2,17 +2,12 @@
 A multi-objective Neural Search Algorithm for Capsule Neural Networks
 
 ## Setup the environment :
-Using pip :
+For pip users :
 ```
-pip install -r requirement.txt
-```
-
-Using conda :
-```
-conda create --name <env_name> --file requirement.txt
+pip install -r requirements.txt
 ```
 
-or (using environment.yml):
+For conda users :
 ```
 conda env create -f environment.yml
 ```
