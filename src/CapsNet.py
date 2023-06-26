@@ -11,8 +11,10 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 
 
 class CapsNet(tf.keras.Model):
-    def __init__(self, epochs, epsilon, m_minus, m_plus, lambda_, alpha, no_of_conv_kernels, no_of_primary_capsules, primary_capsule_vector, no_of_secondary_capsules, secondary_capsule_vector, r, train_metrics):
+    def __init__(self, dataset, input_shape, epochs, epsilon, m_minus, m_plus, lambda_, alpha, no_of_conv_kernels, no_of_primary_capsules, primary_capsule_vector, no_of_secondary_capsules, secondary_capsule_vector, r, train_metrics):
         super(CapsNet, self).__init__()
+        self.dataset = dataset
+        self.image_size = input_shape[0] * input_shape[1]
         self.epochs = epochs
         self.epsilon = epsilon
         self.m_minus = m_minus
@@ -27,6 +29,9 @@ class CapsNet(tf.keras.Model):
         self.r = r
         self.train_metrics = train_metrics
         self.training_metrics = None
+        self.reconstruct = True
+        if input_shape[-1] > 1: # more than 1 color channel -> no reconstruction
+            self.reconstruct = False
 
         with tf.name_scope("Variables") as scope:
             self.convolution = tf.keras.layers.Conv2D(self.no_of_conv_kernels, [9,9], strides=[1,1], name='ConvolutionLayer', activation='relu')
@@ -34,7 +39,7 @@ class CapsNet(tf.keras.Model):
             self.w = tf.Variable(tf.random_normal_initializer()(shape=[1, 1152, self.no_of_secondary_capsules, self.secondary_capsule_vector, self.primary_capsule_vector]), dtype=tf.float32, name="PoseEstimation", trainable=True)
             self.dense_1 = tf.keras.layers.Dense(units = 512, activation='relu')
             self.dense_2 = tf.keras.layers.Dense(units = 1024, activation='relu')
-            self.dense_3 = tf.keras.layers.Dense(units = 784, activation='sigmoid', dtype='float32')
+            self.dense_3 = tf.keras.layers.Dense(units = self.image_size, activation='sigmoid', dtype='float32')
         self.build(input_shape=())
 
     def get_config(self):
@@ -105,8 +110,7 @@ class CapsNet(tf.keras.Model):
             v_ = tf.reshape(v_masked, [-1, self.no_of_secondary_capsules * self.secondary_capsule_vector]) # v_.shape: (None, 160)
             reconstructed_image = self.dense_1(v_) # reconstructed_image.shape: (None, 512)
             reconstructed_image = self.dense_2(reconstructed_image) # reconstructed_image.shape: (None, 1024)
-            reconstructed_image = self.dense_3(reconstructed_image) # reconstructed_image.shape: (None, 784)
-        
+            reconstructed_image = self.dense_3(reconstructed_image) # reconstructed_image.shape: (None, image_size)
         return v, reconstructed_image
 
     @tf.function
@@ -144,7 +148,7 @@ class CapsNet(tf.keras.Model):
             v_ = tf.reshape(inputs, [-1, self.no_of_secondary_capsules * self.secondary_capsule_vector]) # v_.shape: (None, 160)
             reconstructed_image = self.dense_1(v_) # reconstructed_image.shape: (None, 512)
             reconstructed_image = self.dense_2(reconstructed_image) # reconstructed_image.shape: (None, 1024)
-            reconstructed_image = self.dense_3(reconstructed_image) # reconstructed_image.shape: (None, 784)
+            reconstructed_image = self.dense_3(reconstructed_image) # reconstructed_image.shape: (None, image_size)
         return reconstructed_image
 
     def safe_norm(self, v, axis=-1):
@@ -158,9 +162,11 @@ class CapsNet(tf.keras.Model):
         right_margin = tf.square(tf.maximum(0.0, prediction - self.m_minus))
         l = tf.add(y * left_margin, self.lambda_ * (1.0 - y) * right_margin)
         margin_loss = tf.reduce_mean(tf.reduce_sum(l, axis=-1))
-        y_image_flat = tf.reshape(y_image, [-1, 784])
-        reconstruction_loss = tf.reduce_mean(tf.square(y_image_flat - reconstructed_image))
-        loss = tf.add(margin_loss, self.alpha * reconstruction_loss)
+        loss = margin_loss
+        if self.reconstruct:
+            y_image_flat = tf.reshape(y_image, [-1, self.image_size])
+            reconstruction_loss = tf.reduce_mean(tf.square(y_image_flat - reconstructed_image))
+            loss = tf.add(loss, self.alpha * reconstruction_loss)
         return loss
 
     def fit(self, X, y, optimizer, batch_size=64):
@@ -210,16 +216,16 @@ class CapsNet(tf.keras.Model):
 
     def save(self, evaluate=None, classes=[]):
         # Calling tensorflow save method to save the model
-        super(CapsNet, self).save(f"../saved_models/{self.name}")
+        super(CapsNet, self).save(f"../saved_models/{self.name}-{self.dataset}")
         self.saved = True
         if not self.training_metrics:
             raise ValueError('The model bust be trained before being saved')
         # Model config
-        with open(f'../saved_models/{self.name}/assets/config.json', 'w') as fp:
+        with open(f'../saved_models/{self.name}-{self.dataset}/assets/config.json', 'w') as fp:
             json.dump(self.get_config(), fp)
         # Training metrics
-        plot = pd.DataFrame(self.training_metrics).plot(title=f"metrics {self.name}")
-        plot.figure.savefig(f'../saved_models/{self.name}/assets/training_metrics.pdf')
+        plot = pd.DataFrame(self.training_metrics).plot(title=f"metrics {self.name}-{self.dataset}")
+        plot.figure.savefig(f'../saved_models/{self.name}-{self.dataset}/assets/training_metrics.pdf')
         if evaluate:
             if len(classes) == 0:
                 raise ValueError('For saving model with classification metrics, add the classes (def save(self, name, evaluate=None, classes=[]):)')
@@ -238,7 +244,7 @@ class CapsNet(tf.keras.Model):
         if save:
             if not self.saved:
                 raise ValueError("Model has not been saved yet, the folder used to save the model doesn't exist yet, create it or call super(CapsNet, self).save(model_name)")
-            df.to_csv(f'../saved_models/{self.name}/assets/classification_metrics.csv')
-            cm_plot.figure.savefig(f'../saved_models/{self.name}/assets/confusion_matrix.png')
+            df.to_csv(f'../saved_models/{self.name}-{self.dataset}/assets/classification_metrics.csv')
+            cm_plot.figure.savefig(f'../saved_models/{self.name}-{self.dataset}/assets/confusion_matrix.png')
         else:
             plt.show()

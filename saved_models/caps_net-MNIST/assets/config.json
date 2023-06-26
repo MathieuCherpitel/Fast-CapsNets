@@ -1,0 +1,1 @@
+{"epochs": 10, "epsilon": 1e-07, "m_minus": 0.1, "m_plus": 0.9, "lambda_": 0.5, "alpha": 0.0005, "no_of_conv_kernels": 128, "no_of_primary_capsules": 32, "no_of_secondary_capsules": 10, "primary_capsule_vector": 8, "secondary_capsule_vector": 16, "r": 3, "train_metrics": ["accuracy", "precision", "recall", "f1"]}
