@@ -164,6 +164,7 @@ class CapsNet(tf.keras.Model):
         margin_loss = tf.reduce_mean(tf.reduce_sum(l, axis=-1))
         loss = margin_loss
         if self.reconstruct:
+            # For one channel images, compute the reconstruction loss
             y_image_flat = tf.reshape(y_image, [-1, self.image_size])
             reconstruction_loss = tf.reduce_mean(tf.square(y_image_flat - reconstructed_image))
             loss = tf.add(loss, self.alpha * reconstruction_loss)
@@ -198,7 +199,7 @@ class CapsNet(tf.keras.Model):
                     metrics['precision'].append(precision_score(y, y_preds, average='weighted'))
                 if 'recall' in self.train_metrics:
                     metrics['recall'].append(recall_score(y, y_preds, average='weighted'))
-                metrics['loss'].append(loss.numpy())
+                metrics['loss'].append(float(loss.numpy()))
                 pbar.set_postfix_str(f"Loss : {loss.numpy():.4f}")
         self.training_metrics = metrics
         return metrics
@@ -225,6 +226,8 @@ class CapsNet(tf.keras.Model):
             json.dump(self.get_config(), fp)
         # Training metrics
         plot = pd.DataFrame(self.training_metrics).plot(title=f"metrics {self.name}-{self.dataset}")
+        with open(f'../saved_models/{self.name}-{self.dataset}/assets/training_metrics.json', 'w') as fp:
+            json.dump(self.training_metrics, fp)
         plot.figure.savefig(f'../saved_models/{self.name}-{self.dataset}/assets/training_metrics.pdf')
         if evaluate:
             if len(classes) == 0:
@@ -244,6 +247,7 @@ class CapsNet(tf.keras.Model):
         if save:
             if not self.saved:
                 raise ValueError("Model has not been saved yet, the folder used to save the model doesn't exist yet, create it or call super(CapsNet, self).save(model_name)")
+            df_cm.to_csv(f'../saved_models/{self.name}-{self.dataset}/assets/confusion_matrix.csv')
             df.to_csv(f'../saved_models/{self.name}-{self.dataset}/assets/classification_metrics.csv')
             cm_plot.figure.savefig(f'../saved_models/{self.name}-{self.dataset}/assets/confusion_matrix.png')
         else:
