@@ -11,10 +11,8 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 
 
 class CapsNet(tf.keras.Model):
-    def __init__(self, dataset, input_shape, epochs, epsilon, m_minus, m_plus, lambda_, alpha, no_of_conv_kernels, no_of_primary_capsules, primary_capsule_vector, no_of_secondary_capsules, secondary_capsule_vector, r, train_metrics):
+    def __init__(self, epochs, epsilon, m_minus, m_plus, lambda_, alpha, no_of_conv_kernels, no_of_primary_capsules, primary_capsule_vector, no_of_secondary_capsules, secondary_capsule_vector, r):
         super(CapsNet, self).__init__()
-        self.dataset = dataset
-        self.image_size = input_shape[0] * input_shape[1]
         self.epochs = epochs
         self.epsilon = epsilon
         self.m_minus = m_minus
@@ -27,11 +25,8 @@ class CapsNet(tf.keras.Model):
         self.no_of_secondary_capsules = no_of_secondary_capsules
         self.secondary_capsule_vector = secondary_capsule_vector
         self.r = r
-        self.train_metrics = train_metrics
         self.training_metrics = None
         self.reconstruct = True
-        if input_shape[-1] > 1: # more than 1 color channel -> no reconstruction
-            self.reconstruct = False
 
         with tf.name_scope("Variables") as scope:
             self.convolution = tf.keras.layers.Conv2D(self.no_of_conv_kernels, [9,9], strides=[1,1], name='ConvolutionLayer', activation='relu')
@@ -39,7 +34,8 @@ class CapsNet(tf.keras.Model):
             self.w = tf.Variable(tf.random_normal_initializer()(shape=[1, 1152, self.no_of_secondary_capsules, self.secondary_capsule_vector, self.primary_capsule_vector]), dtype=tf.float32, name="PoseEstimation", trainable=True)
             self.dense_1 = tf.keras.layers.Dense(units = 512, activation='relu')
             self.dense_2 = tf.keras.layers.Dense(units = 1024, activation='relu')
-            self.dense_3 = tf.keras.layers.Dense(units = self.image_size, activation='sigmoid', dtype='float32')
+            self.dense_3 = None
+
         self.build(input_shape=())
 
     def get_config(self):
@@ -56,7 +52,6 @@ class CapsNet(tf.keras.Model):
             "primary_capsule_vector": self.primary_capsule_vector,
             "secondary_capsule_vector": self.secondary_capsule_vector,
             "r": self.r,
-            "train_metrics": self.train_metrics
         }
 
     @classmethod
@@ -84,7 +79,6 @@ class CapsNet(tf.keras.Model):
             u_hat = tf.matmul(self.w, u) # u_hat.shape: (None, 1152, 10, 16, 1)
             u_hat = tf.squeeze(u_hat, [4]) # u_hat.shape: (None, 1152, 10, 16)
 
-
         with tf.name_scope("DynamicRouting") as scope:
             b = tf.zeros((input_x.shape[0] if input_x.shape[0] else 1, 1152, self.no_of_secondary_capsules, 1)) # b.shape: (None, 1152, 10, 1)
             for i in range(self.r): # self.r = 3
@@ -110,6 +104,8 @@ class CapsNet(tf.keras.Model):
             v_ = tf.reshape(v_masked, [-1, self.no_of_secondary_capsules * self.secondary_capsule_vector]) # v_.shape: (None, 160)
             reconstructed_image = self.dense_1(v_) # reconstructed_image.shape: (None, 512)
             reconstructed_image = self.dense_2(reconstructed_image) # reconstructed_image.shape: (None, 1024)
+            if not self.dense_3:
+                self.dense_3 = tf.keras.layers.Dense(units = input_x.shape[1] * input_x.shape[2], activation='sigmoid', dtype='float32')
             reconstructed_image = self.dense_3(reconstructed_image) # reconstructed_image.shape: (None, image_size)
         return v, reconstructed_image
 
@@ -156,6 +152,14 @@ class CapsNet(tf.keras.Model):
         return tf.sqrt(v_ + self.epsilon)
 
     def loss_function(self, v, reconstructed_image, y, y_image):
+        """
+        In CapsNet, capsules are groups of neurons that represent different properties or features of an input.
+        Each capsule outputs a vector, called an activity vector, which represents the probability of the presence of a specific entity in the input data.
+        The margin loss is designed to encourage the capsules to have consistent and distinct activations for different entities in the input data.
+        It helps in achieving viewpoint invariance and better generalization capabilities in CapsNet.
+
+        L = T_c * max(0, m_plus - ||v_c||)^2 + λ * (1 - T_c) * max(0, ||v_c|| - m_minus)^2
+        """
         prediction = self.safe_norm(v)
         prediction = tf.reshape(prediction, [-1, self.no_of_secondary_capsules])
         left_margin = tf.square(tf.maximum(0.0, self.m_plus - prediction))
@@ -163,15 +167,15 @@ class CapsNet(tf.keras.Model):
         l = tf.add(y * left_margin, self.lambda_ * (1.0 - y) * right_margin)
         margin_loss = tf.reduce_mean(tf.reduce_sum(l, axis=-1))
         loss = margin_loss
-        if self.reconstruct:
+        if y_image.shape[-1] == 1:
             # For one channel images, compute the reconstruction loss
-            y_image_flat = tf.reshape(y_image, [-1, self.image_size])
+            y_image_flat = tf.reshape(y_image, [-1, y_image.shape[1] * y_image.shape[2]])
             reconstruction_loss = tf.reduce_mean(tf.square(y_image_flat - reconstructed_image))
             loss = tf.add(loss, self.alpha * reconstruction_loss)
         return loss
 
-    def fit(self, X, y, optimizer, batch_size=64):
-        metrics = dict((el,[]) for el in self.train_metrics)
+    def fit(self, X, y, optimizer, batch_size=64, train_metrics=None):
+        metrics = dict((el,[]) for el in train_metrics) if train_metrics else {}
         metrics['loss'] = []
         training = tf.data.Dataset.from_tensor_slices((X, y))
         training = training.shuffle(buffer_size=len(training), reshuffle_each_iteration=True)
@@ -181,7 +185,7 @@ class CapsNet(tf.keras.Model):
             with tqdm(total=len(training)) as pbar:
                 pbar.set_description_str(f"Epoch {i}/{self.epochs}")
                 for X_batch, y_batch in training:
-                    y_one_hot = tf.one_hot(y_batch, depth=10)
+                    y_one_hot = tf.one_hot(y_batch, depth=len(np.unique(y)))
                     with tf.GradientTape() as tape:
                         v, reconstructed_image = self([X_batch, y_one_hot])
                         loss += self.loss_function(v, reconstructed_image, y_one_hot, X_batch)
@@ -189,16 +193,17 @@ class CapsNet(tf.keras.Model):
                     optimizer.apply_gradients(zip(grad, self.trainable_variables))
                     pbar.update(1)
                 loss /= len(X)
-                pbar.set_postfix_str("Evaluating")
-                y_preds = self.predict(X)
-                if 'accuracy' in self.train_metrics:
-                    metrics['accuracy'].append(accuracy_score(y, y_preds))
-                if 'f1' in self.train_metrics:
-                    metrics['f1'].append(f1_score(y, y_preds, average='weighted'))
-                if 'precision' in self.train_metrics:
-                    metrics['precision'].append(precision_score(y, y_preds, average='weighted'))
-                if 'recall' in self.train_metrics:
-                    metrics['recall'].append(recall_score(y, y_preds, average='weighted'))
+                if train_metrics:
+                    pbar.set_postfix_str("Evaluating")
+                    y_preds = self.predict(X)
+                    if 'accuracy' in train_metrics:
+                        metrics['accuracy'].append(accuracy_score(y, y_preds))
+                    if 'f1' in train_metrics:
+                        metrics['f1'].append(f1_score(y, y_preds, average='weighted'))
+                    if 'precision' in train_metrics:
+                        metrics['precision'].append(precision_score(y, y_preds, average='weighted'))
+                    if 'recall' in train_metrics:
+                        metrics['recall'].append(recall_score(y, y_preds, average='weighted'))
                 metrics['loss'].append(float(loss.numpy()))
                 pbar.set_postfix_str(f"Loss : {loss.numpy():.4f}")
         self.training_metrics = metrics
@@ -217,18 +222,18 @@ class CapsNet(tf.keras.Model):
 
     def save(self, evaluate=None, classes=[]):
         # Calling tensorflow save method to save the model
-        super(CapsNet, self).save(f"../saved_models/{self.name}-{self.dataset}")
+        super(CapsNet, self).save(f"../saved_models/{self.name}")
         self.saved = True
         if not self.training_metrics:
             raise ValueError('The model bust be trained before being saved')
         # Model config
-        with open(f'../saved_models/{self.name}-{self.dataset}/assets/config.json', 'w') as fp:
+        with open(f'../saved_models/{self.name}/assets/config.json', 'w') as fp:
             json.dump(self.get_config(), fp)
         # Training metrics
-        plot = pd.DataFrame(self.training_metrics).plot(title=f"metrics {self.name}-{self.dataset}")
-        with open(f'../saved_models/{self.name}-{self.dataset}/assets/training_metrics.json', 'w') as fp:
+        plot = pd.DataFrame(self.training_metrics).plot(title=f"metrics {self.name}")
+        with open(f'../saved_models/{self.name}/assets/training_metrics.json', 'w') as fp:
             json.dump(self.training_metrics, fp)
-        plot.figure.savefig(f'../saved_models/{self.name}-{self.dataset}/assets/training_metrics.pdf')
+        plot.figure.savefig(f'../saved_models/{self.name}/assets/training_metrics.pdf')
         if evaluate:
             if len(classes) == 0:
                 raise ValueError('For saving model with classification metrics, add the classes (def save(self, name, evaluate=None, classes=[]):)')
@@ -247,8 +252,8 @@ class CapsNet(tf.keras.Model):
         if save:
             if not self.saved:
                 raise ValueError("Model has not been saved yet, the folder used to save the model doesn't exist yet, create it or call super(CapsNet, self).save(model_name)")
-            df_cm.to_csv(f'../saved_models/{self.name}-{self.dataset}/assets/confusion_matrix.csv')
-            df.to_csv(f'../saved_models/{self.name}-{self.dataset}/assets/classification_metrics.csv')
-            cm_plot.figure.savefig(f'../saved_models/{self.name}-{self.dataset}/assets/confusion_matrix.png')
+            df_cm.to_csv(f'../saved_models/{self.name}/assets/confusion_matrix.csv')
+            df.to_csv(f'../saved_models/{self.name}/assets/classification_metrics.csv')
+            cm_plot.figure.savefig(f'../saved_models/{self.name}/assets/confusion_matrix.png')
         else:
             plt.show()
