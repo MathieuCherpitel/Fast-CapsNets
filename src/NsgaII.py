@@ -28,8 +28,7 @@ class Nsga_II:
         self.name = name
         if os.path.exists(f"../saved_ga/{self.name}"):
             print(f'A ga has been saved under the same name ({self.name}) replace ?')
-            res = input("y / n")
-            print(res)
+            res = input("y / n : ")
             if res != "y":
                 print("Exiting ...")
                 self.valid = False
@@ -38,6 +37,7 @@ class Nsga_II:
                 self.valid = True
         else:
             os.makedirs(f"../saved_ga/{self.name}")
+            self.valid = True
         self.n_gen = n_gen
         self.pop_size = pop_size
         self.rate_crossover = rate_crossover
