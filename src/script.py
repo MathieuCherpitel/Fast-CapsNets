@@ -17,19 +17,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = vars(args)
 
-    match args.dataset:
-        case "mnist":
-            train_data, test_data = load_mnist(size=(1024, 512))
-        case "fmnist":
-            train_data, test_data = load_fashion_mnist()
-        case "cifar10":
-            train_data, test_data = load_cifar_10()
-        case "cifar100":
-            train_data, test_data = load_cifar_100()
+    if args.dataset == "mnist":
+        train_data, test_data = load_mnist(size=(1024, 512))
+    elif args.dataset == "fmnist":
+        train_data, test_data = load_fashion_mnist()
+    elif args.dataset == "cifar10":
+        train_data, test_data = load_cifar_10()
+    elif args.dataset == "cifar100":
+        train_data, test_data = load_cifar_100()
 
     config.pop('dataset')
     config['train_data'] = train_data
     config['test_data'] = test_data
+
 
     nas = Nsga_II(**config)
     if nas.valid:
