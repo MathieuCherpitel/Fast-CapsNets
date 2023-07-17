@@ -9,9 +9,9 @@
 #SBATCH -o sbatch/job-%j.output
 #SBATCH -e sbatch/job-%j.error
 ## Job name
-#SBATCH -J gpu-test
+#SBATCH -J nas_caps
 ## Run time: "hours:minutes:seconds", "days-hours"
-#SBATCH --time=01:00:00
+#SBATCH --time=20:00:00
 ## Memory limit (in megabytes). Total --mem or amount per cpu --mem-per-cpu
 #SBATCH --mem-per-cpu=10000
 ## GPU requirements
@@ -21,7 +21,7 @@
 
 ################# Part-2 Shell script ####################
 #===============================
-#  Activate Flight Environment
+#  Activate Flight and Conda Environments
 #-------------------------------
 source "${flight_ROOT:-/opt/flight}"/etc/setup.sh
 conda activate smi
@@ -36,16 +36,11 @@ mkdir -p "$RESULTS_DIR"
 #===============================
 #  Application launch commands
 #-------------------------------
-# Customize this section to suit your needs.
-
 echo "Executing job commands, current working directory is $(pwd)"
 
-# REPLACE THE FOLLOWING WITH YOUR APPLICATION COMMANDS
-
-NAME="nas_mnist_dmog"
-
+NAME="nas_fmnist_dmog"
 cd src
-python3 script.py -n nas_mnist_dmog -d mnist -g 1 -p 10
+python3 script.py -n nas_fmnist_dmog -d fmnist -g 10 -p 10
 echo "Job ran on `hostname -s` (as `whoami`)." >> $RESULTS_DIR/$NAME.output
 echo "I was allocated the following GPU devices: $CUDA_VISIBLE_DEVICES" >> $RESULTS_DIR/$NAME.output
 echo "Output file has been generated, please check $RESULTS_DIR/$NAME.output"
