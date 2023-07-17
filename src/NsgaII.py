@@ -12,7 +12,7 @@ import json
 
 
 class Nsga_II:
-    def __init__(self, name, n_gen, pop_size, rate_crossover, rate_mutation, rate_local_search, step_size, train_data, test_data) -> None:
+    def __init__(self, name, n_gen, pop_size, rate_crossover, rate_mutation, rate_local_search, step_size, train_data, test_data, n_runs=100) -> None:
         """NSGA-II pareto dominance class for optimising inference and accuracy of CapsNet
 
         Args:
@@ -46,6 +46,7 @@ class Nsga_II:
         self.step_size = step_size
         self.train_data = train_data
         self.test_data = test_data
+        self.n_runs = n_runs
 
         self.n_var = 7
         self.vars = ['epochs', 'epsilon', 'm_plus', 'm_minus', 'lambda_', 'alpha', 'r']
@@ -186,16 +187,24 @@ class Nsga_II:
             # build model with found genotype
             model = CapsNet(**genotype)
             print(f'Fitting individual {i + 1}/{len(pop)} with genotype {genotype}')
-            model.fit(self.train_data[0], self.train_data[1], tf.keras.optimizers.legacy.Adam())
+            model.fit(self.train_data[0], self.train_data[1], tf.keras.optimizers.legacy.Adam(), validation=self.test_data)
 
-            # evaluate model
-            start = time.time()
-            y_preds = model.predict(self.test_data[0])
-            end = time.time()
-            inference = end - start
+            # update the number of epochs used for training in case the model stopped early to avoid overfitting
+            ind[0] = model.epochs
+
+            # Evaluate model
+            n_runs = 100
+            inference_time = 0
+            indexes = np.random.randint(len(self.test_data[0]), size=n_runs)
+            for i in range(n_runs):
+                start = time.time()
+                y_preds = model.predict(self.test_data[0][indexes[i]])
+                end = time.time()
+                inference_time += end - start
+            inference_time /= n_runs
             accuracy = accuracy_score(self.test_data[1], y_preds)
 
-            fitness_values[i,0] = inference
+            fitness_values[i,0] = inference_time
             fitness_values[i,1] = accuracy
         return fitness_values
 

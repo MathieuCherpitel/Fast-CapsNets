@@ -28,6 +28,8 @@ class CapsNet(tf.keras.Model):
         self.training_metrics = None
         self.reconstruct = True
 
+        self.early_stop = True # in case the validation loss decreases, stops the training if True
+
         with tf.name_scope("Variables") as scope:
             self.convolution = tf.keras.layers.Conv2D(self.no_of_conv_kernels, [9,9], strides=[1,1], name='ConvolutionLayer', activation='relu')
             self.primary_capsule = tf.keras.layers.Conv2D(self.no_of_primary_capsules * self.primary_capsule_vector, [9,9], strides=[2,2], name="PrimaryCapsule")
@@ -151,61 +153,94 @@ class CapsNet(tf.keras.Model):
         v_ = tf.reduce_sum(tf.square(v), axis = axis, keepdims=True)
         return tf.sqrt(v_ + self.epsilon)
 
-    def loss_function(self, v, reconstructed_image, y, y_image):
-        """
-        In CapsNet, capsules are groups of neurons that represent different properties or features of an input.
-        Each capsule outputs a vector, called an activity vector, which represents the probability of the presence of a specific entity in the input data.
-        The margin loss is designed to encourage the capsules to have consistent and distinct activations for different entities in the input data.
-        It helps in achieving viewpoint invariance and better generalization capabilities in CapsNet.
+    def loss_function(self, dataset, depth, optimizer, X, pbar, val=None):
+        final_loss = 0
+        for X_batch, y_batch in dataset:
+            y_one_hot = tf.one_hot(y_batch, depth=depth)
+            with tf.GradientTape() as tape:
+                v, reconstructed_image = self([X_batch, y_one_hot])
+                prediction = self.safe_norm(v)
+                prediction = tf.reshape(prediction, [-1, self.no_of_secondary_capsules])
+                left_margin = tf.square(tf.maximum(0.0, self.m_plus - prediction))
+                right_margin = tf.square(tf.maximum(0.0, prediction - self.m_minus))
+                l = tf.add(y_one_hot * left_margin, self.lambda_ * (1.0 - y_one_hot) * right_margin)
+                margin_loss = tf.reduce_mean(tf.reduce_sum(l, axis=-1))
+                loss = margin_loss
+                if X_batch.shape[-1] == 1:
+                    # For one channel images, compute the reconstruction loss
+                    y_image_flat = tf.reshape(X_batch, [-1, X_batch.shape[1] * X_batch.shape[2]])
+                    reconstruction_loss = tf.reduce_mean(tf.square(y_image_flat - reconstructed_image))
+                    loss = tf.add(loss, self.alpha * reconstruction_loss)
+                final_loss += loss
+            if not val:
+                grad = tape.gradient(loss, self.trainable_variables)
+                optimizer.apply_gradients(zip(grad, self.trainable_variables))
+                pbar.update(1)
+        return final_loss / len(X)
 
-        L = T_c * max(0, m_plus - ||v_c||)^2 + λ * (1 - T_c) * max(0, ||v_c|| - m_minus)^2
-        """
-        prediction = self.safe_norm(v)
-        prediction = tf.reshape(prediction, [-1, self.no_of_secondary_capsules])
-        left_margin = tf.square(tf.maximum(0.0, self.m_plus - prediction))
-        right_margin = tf.square(tf.maximum(0.0, prediction - self.m_minus))
-        l = tf.add(y * left_margin, self.lambda_ * (1.0 - y) * right_margin)
-        margin_loss = tf.reduce_mean(tf.reduce_sum(l, axis=-1))
-        loss = margin_loss
-        if y_image.shape[-1] == 1:
-            # For one channel images, compute the reconstruction loss
-            y_image_flat = tf.reshape(y_image, [-1, y_image.shape[1] * y_image.shape[2]])
-            reconstruction_loss = tf.reduce_mean(tf.square(y_image_flat - reconstructed_image))
-            loss = tf.add(loss, self.alpha * reconstruction_loss)
-        return loss
+    def compute_train_metrics(self, train_metrics, metrics, X, y,  validation):
+        y_preds = self.predict(X)
+        if 'accuracy' in train_metrics:
+            metrics['accuracy'].append(accuracy_score(y, y_preds))
+        if 'f1' in train_metrics:
+            metrics['f1'].append(f1_score(y, y_preds, average='weighted'))
+        if 'precision' in train_metrics:
+            metrics['precision'].append(precision_score(y, y_preds, average='weighted'))
+        if 'recall' in train_metrics:
+            metrics['recall'].append(recall_score(y, y_preds, average='weighted'))
+        if validation:
+            val_X = validation[0]
+            val_y = validation[1]
+            val_y_preds = self.predict(val_X)
+            if 'accuracy' in train_metrics:
+                metrics['val_accuracy'].append(accuracy_score(val_y, val_y_preds))
+            if 'f1' in train_metrics:
+                metrics['val_f1'].append(f1_score(val_y, val_y_preds, average='weighted'))
+            if 'precision' in train_metrics:
+                metrics['val_precision'].append(precision_score(val_y, val_y_preds, average='weighted'))
+            if 'recall' in train_metrics:
+                metrics['val_recall'].append(recall_score(val_y, val_y_preds, average='weighted'))
+        return metrics
 
-    def fit(self, X, y, optimizer, batch_size=64, train_metrics=None):
+    # During training, the model is evaluated on a holdout validation dataset after each epoch.
+    # If the performance of the model on the validation dataset starts to degrade (e.g. loss begins to increase or accuracy begins to decrease),
+    # then the training process is stopped.
+    def fit(self, X, y, optimizer, batch_size=64, train_metrics=None, validation=None):
         metrics = dict((el,[]) for el in train_metrics) if train_metrics else {}
         metrics['loss'] = []
         training = tf.data.Dataset.from_tensor_slices((X, y))
         training = training.shuffle(buffer_size=len(training), reshuffle_each_iteration=True)
         training = training.batch(batch_size=batch_size)
+        if validation:
+            metrics.update(dict((f"val_{el}",[]) for el in train_metrics) if train_metrics else {})
+            metrics['val_loss'] = []
+            validating = tf.data.Dataset.from_tensor_slices((validation[0], validation[1]))
+            validating = validating.shuffle(buffer_size=len(validating), reshuffle_each_iteration=True)
+            validating = validating.batch(batch_size=batch_size)
+        depth = len(np.unique(y))
+        train_loss = 0
+        val_loss = 1
         for i in range(1, self.epochs+1, 1):
-            loss = 0
             with tqdm(total=len(training)) as pbar:
                 pbar.set_description_str(f"Epoch {i}/{self.epochs}")
-                for X_batch, y_batch in training:
-                    y_one_hot = tf.one_hot(y_batch, depth=len(np.unique(y)))
-                    with tf.GradientTape() as tape:
-                        v, reconstructed_image = self([X_batch, y_one_hot])
-                        loss += self.loss_function(v, reconstructed_image, y_one_hot, X_batch)
-                    grad = tape.gradient(loss, self.trainable_variables)
-                    optimizer.apply_gradients(zip(grad, self.trainable_variables))
-                    pbar.update(1)
-                loss /= len(X)
+                train_loss = self.loss_function(training, depth, optimizer, X, pbar, val=None)
+                if validation:
+                    old = val_loss
+                    val_loss = self.loss_function(validating, depth, optimizer, validation[0], pbar, val=True)
+                    # early stopping
+                    if old < val_loss and self.early_stop:
+                        print(f"Validation loss is not decreasing anymore, risk of overfitting the model after {i} epochs. The training will be stopped. This behavior can be modified by setting the early_stop property of the model to False")
+                        self.epochs = i # set the real number of epochs required to train the model before overfitting.
+                        return metrics
                 if train_metrics:
-                    pbar.set_postfix_str("Evaluating")
-                    y_preds = self.predict(X)
-                    if 'accuracy' in train_metrics:
-                        metrics['accuracy'].append(accuracy_score(y, y_preds))
-                    if 'f1' in train_metrics:
-                        metrics['f1'].append(f1_score(y, y_preds, average='weighted'))
-                    if 'precision' in train_metrics:
-                        metrics['precision'].append(precision_score(y, y_preds, average='weighted'))
-                    if 'recall' in train_metrics:
-                        metrics['recall'].append(recall_score(y, y_preds, average='weighted'))
-                metrics['loss'].append(float(loss.numpy()))
-                pbar.set_postfix_str(f"Loss : {loss.numpy():.4f}")
+                    pbar.set_postfix_str("Evaluating ...")
+                    metrics = self.compute_train_metrics(train_metrics, metrics, X, y, validation)
+                metrics['loss'].append(float(train_loss.numpy()))
+                if validation:
+                    metrics['val_loss'].append(float(val_loss.numpy()))
+                    pbar.set_postfix_str(f"Training loss : {train_loss.numpy():.4f}, Validation loss : {val_loss.numpy():.4f}")
+                else :
+                    pbar.set_postfix_str(f"Loss : {train_loss.numpy():.4f}")
         self.training_metrics = metrics
         return metrics
 
