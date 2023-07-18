@@ -231,6 +231,7 @@ class CapsNet(tf.keras.Model):
                     if old < val_loss and self.early_stop:
                         print(f"Validation loss is not decreasing anymore, risk of overfitting the model after {i} epochs. The training will be stopped. This behavior can be modified by setting the early_stop property of the model to False")
                         self.epochs = i # set the real number of epochs required to train the model before overfitting.
+                        self.training_metrics = metrics
                         return metrics
                 if train_metrics:
                     pbar.set_postfix_str("Evaluating ...")
@@ -255,40 +256,35 @@ class CapsNet(tf.keras.Model):
     def predict(self, X):
         return np.argmax(self.predict_proba(X), axis=1)[:,0]
 
-    def save(self, evaluate=None, classes=[]):
+    def save(self):
         # Calling tensorflow save method to save the model
+        print(f"Saving model under /saved_models/{self.name}")
         super(CapsNet, self).save(f"../saved_models/{self.name}")
-        self.saved = True
         if not self.training_metrics:
             raise ValueError('The model bust be trained before being saved')
         # Model config
         with open(f'../saved_models/{self.name}/assets/config.json', 'w') as fp:
             json.dump(self.get_config(), fp)
         # Training metrics
-        plot = pd.DataFrame(self.training_metrics).plot(title=f"metrics {self.name}")
+        df = pd.DataFrame(self.training_metrics)
+        plot = df.plot(title=f"Metrics {self.name}")
+        plot.set_ylim(0, 1)
+        plot.set_xlim(left=0)
+        plot.set_xlabel("epochs")
+        plot.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
         with open(f'../saved_models/{self.name}/assets/training_metrics.json', 'w') as fp:
             json.dump(self.training_metrics, fp)
         plot.figure.savefig(f'../saved_models/{self.name}/assets/training_metrics.pdf')
-        if evaluate:
-            if len(classes) == 0:
-                raise ValueError('For saving model with classification metrics, add the classes (def save(self, name, evaluate=None, classes=[]):)')
-            self.evaluate(evaluate[0], evaluate[1], classes, save=True)
+        self.saved = True
 
-    def evaluate(self, X_test, y_test, classes, save=False):
+    def evaluate(self, X_test, y_test, classes):
         preds = self.predict(X_test)
-        # Classification metrics
-        report = classification_report(y_test, preds, output_dict=True)
-        df = pd.DataFrame(report).transpose()
         # Confusion matrix
         cm = confusion_matrix(y_test, preds)
         df_cm = pd.DataFrame(cm, index=classes, columns=classes)
-        plt.figure(figsize = (10,7))
-        cm_plot = sn.heatmap(df_cm, annot=True)
-        if save:
-            if not self.saved:
-                raise ValueError("Model has not been saved yet, the folder used to save the model doesn't exist yet, create it or call super(CapsNet, self).save(model_name)")
-            df_cm.to_csv(f'../saved_models/{self.name}/assets/confusion_matrix.csv')
-            df.to_csv(f'../saved_models/{self.name}/assets/classification_metrics.csv')
-            cm_plot.figure.savefig(f'../saved_models/{self.name}/assets/confusion_matrix.png')
-        else:
-            plt.show()
+        sn.heatmap(df_cm, annot=True)
+        # Classification metrics
+        report = classification_report(y_test, preds, output_dict=True)
+        df = pd.DataFrame(report).transpose()
+        df.index = classes + ['accuracy', 'macro avg', 'weighted avg']
+        return df
