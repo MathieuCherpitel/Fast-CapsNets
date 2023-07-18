@@ -193,16 +193,23 @@ class Nsga_II:
             ind[0] = model.epochs
 
             # Evaluate model
-            n_runs = 100
-            inference_time = 0
-            indexes = np.random.randint(len(self.test_data[0]), size=n_runs)
-            for i in range(n_runs):
-                start = time.time()
-                y_preds = model.predict(self.test_data[0][indexes[i]])
-                end = time.time()
-                inference_time += end - start
-            inference_time /= n_runs
+            start = time.time()
+            y_preds = model.predict(self.test_data[0])
+            end = time.time()
+
+            inference_time = (end - start) / len(self.test_data[0])
             accuracy = accuracy_score(self.test_data[1], y_preds)
+
+            # n_runs = 100
+            # inference_time = 0
+            # indexes = np.random.randint(len(self.test_data[0]), size=n_runs)
+            # for j in range(n_runs):
+            #     start = time.time()
+            #     model.predict(self.test_data[0][indexes[j]])
+            #     end = time.time()
+            #     inference_time += end - start
+            # inference_time /= n_runs
+            # accuracy = accuracy_score(self.test_data[1], model.predict(self.test_data[0]))
 
             fitness_values[i,0] = inference_time
             fitness_values[i,1] = accuracy
