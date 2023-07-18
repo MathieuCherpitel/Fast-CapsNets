@@ -354,6 +354,7 @@ class Nsga_II:
         metrics = filtered_metrics
 
         fig, ax = plt.subplots()
+        plt.xlim([0, 1])
         self.plot_individuals(ax, metrics)
 
         legend = ax.legend(bbox_to_anchor=(1, 0.5), loc='center left', ncol=(len(metrics) + 9) // 10)
