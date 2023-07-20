@@ -2,12 +2,12 @@
 
 ################# Part-1 Slurm directives ####################
 ## Working dir
-#SBATCH -D /users/mc2091/thesis/NAS-for-CapsNet/jobs/files
+#SBATCH -D /users/mc2091/thesis/NAS-for-CapsNet
 ## Environment variables
 #SBATCH --export=ALL
 ## Output and Error Files
-#SBATCH -o job-%j.output
-#SBATCH -e job-%j.error
+#SBATCH -o jobs/filesjob-%j.output
+#SBATCH -e jobs/filesjob-%j.error
 ## Job name
 #SBATCH -J gpu-test
 ## Run time: "hours:minutes:seconds", "days-hours"
@@ -34,7 +34,7 @@ conda activate smi
 #===========================
 #  Create results directory
 #---------------------------
-RESULTS_DIR="$(pwd)/${SLURM_JOB_NAME}-outputs/${SLURM_JOB_ID}"
+RESULTS_DIR="$(pwd)/jobs/${SLURM_JOB_NAME}-outputs/${SLURM_JOB_ID}"
 echo "Your results will be stored in: $RESULTS_DIR"
 mkdir -p "$RESULTS_DIR"
 
