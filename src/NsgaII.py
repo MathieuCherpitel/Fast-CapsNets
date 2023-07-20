@@ -48,10 +48,11 @@ class Nsga_II:
         self.test_data = test_data
         self.n_runs = n_runs
 
-        self.n_var = 7
-        self.vars = ['epochs', 'epsilon', 'm_plus', 'm_minus', 'lambda_', 'alpha', 'r']
-        self.mins = [1, 0.01, 0.9, 0.05, 0.1, 0.0001, 2]
-        self.maxs = [10, 0.1, 0.99, 0.2, 1.0, 0.01, 5]
+        self.n_var = 9
+        self.n_conv_kernels = [32, 64, 128, 512]
+        self.vars = ['epochs', 'r', 'no_of_conv_kernels', 'secondary_capsule_vector', 'epsilon', 'm_plus', 'm_minus', 'lambda_', 'alpha']
+        self.mins = [1, 2, 0, 2, 0.01, 0.9, 0.05, 0.1, 0.0001]
+        self.maxs = [10, 5, 3, 50, 0.1, 0.99, 0.2, 1.0, 0.01]
 
         self.time_start = None
 
@@ -64,11 +65,11 @@ class Nsga_II:
         """
         pop = np.zeros((self.pop_size, self.n_var))
         for i in range(self.pop_size):
-            # making sure the epochs and r are integers.
-            pop[i][0] = np.random.randint(self.mins[0], self.maxs[0])
-            pop[i][-1] = np.random.randint(self.mins[-1], self.maxs[-1])
-            for j in range(1, self.n_var - 1):
-                pop[i][j] = np.random.uniform(self.mins[j], self.maxs[j])
+            for j in range(0, 4):
+                pop[i][j] = np.random.randint(self.mins[j], self.maxs[j])
+            for k in range(4, self.n_var):
+                pop[i][k] = np.random.uniform(self.mins[k], self.maxs[k])
+            pop[i][2] = self.n_conv_kernels[int(pop[i][2])]
         return pop
 
     # Get two parents from the population
@@ -177,13 +178,13 @@ class Nsga_II:
             # making sure we have integer values for epochs and rounds
             genotype['epochs'] = round(genotype['epochs'])
             genotype['r'] = round(genotype['r'])
-            # TODO
-            genotype['no_of_conv_kernels'] = 128
+            genotype['no_of_conv_kernels'] = round(genotype['no_of_conv_kernels'])
+            genotype['secondary_capsule_vector'] = round(genotype['secondary_capsule_vector'])
+
             genotype['no_of_primary_capsules'] = 32
-            genotype['no_of_secondary_capsules'] = 10
             genotype['primary_capsule_vector'] = 8
-            genotype['secondary_capsule_vector'] = 16
-            
+            genotype['no_of_secondary_capsules'] = 10
+
             # build model with found genotype
             model = CapsNet(**genotype)
             print(f'Fitting individual {i + 1}/{len(pop)} with genotype {genotype}')

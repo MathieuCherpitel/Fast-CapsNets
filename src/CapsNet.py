@@ -285,6 +285,5 @@ class CapsNet(tf.keras.Model):
         sn.heatmap(df_cm, annot=True)
         # Classification metrics
         report = classification_report(y_test, preds, output_dict=True)
-        df = pd.DataFrame(report).transpose()
-        df.index = classes + ['accuracy', 'macro avg', 'weighted avg']
+        df = pd.DataFrame(report, columns=list(classes).extend(["accuracy", "macro avg", "weighted avg"])).transpose()
         return df
