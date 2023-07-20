@@ -2,7 +2,7 @@
 
 ################# Part-1 Slurm directives ####################
 ## Working dir
-#SBATCH -D /users/mc2091/thesis/NAS-for-CapsNet/src
+#SBATCH -D /users/mc2091/thesis/NAS-for-CapsNet/jobs/files
 ## Environment variables
 #SBATCH --export=ALL
 ## Output and Error Files
@@ -28,6 +28,7 @@ source "${flight_ROOT:-/opt/flight}"/etc/setup.sh
 #==============================
 #  Activate Package Ecosystem
 #------------------------------
+cd /users/mc2091/thesis/NAS-for-CapsNet/jobs
 conda activate smi
 
 #===========================
