@@ -18,7 +18,7 @@ if __name__ == "__main__":
     config = vars(args)
 
     if args.dataset == "mnist":
-        train_data, test_data = load_mnist(size=(1024, 512))
+        train_data, test_data = load_mnist()
     elif args.dataset == "fmnist":
         train_data, test_data = load_fashion_mnist()
     elif args.dataset == "cifar10":
