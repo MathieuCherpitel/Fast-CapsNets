@@ -20,11 +20,11 @@ if __name__ == "__main__":
     if args.dataset == "mnist":
         train_data, test_data = load_mnist(size=(2000, 500))
     elif args.dataset == "fmnist":
-        train_data, test_data = load_fashion_mnist()
+        train_data, test_data = load_fashion_mnist(size=(3000, 1000))
     elif args.dataset == "cifar10":
-        train_data, test_data = load_cifar_10()
+        train_data, test_data = load_cifar_10(size=(2000, 500))
     elif args.dataset == "cifar100":
-        train_data, test_data = load_cifar_100()
+        train_data, test_data = load_cifar_100(size=(2000, 500))
 
     config.pop('dataset')
     config['train_data'] = train_data

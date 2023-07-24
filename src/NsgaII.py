@@ -26,7 +26,7 @@ class Nsga_II:
             test_data (tupple): test_data[0] = X_test, test_data[1] = y_test
         """
         self.name = name
-        if os.path.exists(f"../saved_ga/{self.name}"):
+        if os.path.exists(f"saved_ga/{self.name}"):
             print(f'A ga has been saved under the same name ({self.name}) replace ?')
             res = input("y / n : ")
             if res != "y":
@@ -36,7 +36,7 @@ class Nsga_II:
             else:
                 self.valid = True
         else:
-            os.makedirs(f"../saved_ga/{self.name}")
+            os.makedirs(f"saved_ga/{self.name}")
             self.valid = True
         self.n_gen = n_gen
         self.pop_size = pop_size
@@ -358,7 +358,7 @@ class Nsga_II:
         ax.set_title('Ga optimisation metrics')
 
         print(f'Saving GA metrics under {self.name}/generations_metrics.png')
-        fig.savefig(f'../saved_ga/{self.name}/generations_metrics.png', bbox_extra_artists=(legend,), bbox_inches='tight')
+        fig.savefig(f'saved_ga/{self.name}/generations_metrics.png', bbox_extra_artists=(legend,), bbox_inches='tight')
 
     def plot_individuals(self, ax, metrics):
         for key, value in metrics.items():
@@ -385,7 +385,7 @@ class Nsga_II:
         ax.set_title('Ga solutions metrics')
 
         print(f'Saving GA solutions under {self.name}/solutions_metrics.png')
-        fig.savefig(f'../saved_ga/{self.name}/solutions_metrics.png', bbox_extra_artists=(legend,), bbox_inches='tight')
+        fig.savefig(f'saved_ga/{self.name}/solutions_metrics.png', bbox_extra_artists=(legend,), bbox_inches='tight')
 
     def save_solutions(self, solutions, fitnesses):
         res = {}
@@ -396,7 +396,7 @@ class Nsga_II:
                 'params': {key: value for key, value in zip(self.vars, solutions[index])}
             }
 
-        with open(f'../saved_ga/{self.name}/solutions.json', 'w') as f:
+        with open(f'saved_ga/{self.name}/solutions.json', 'w') as f:
             f.write(json.dumps(res))
 
     def save_params(self):
@@ -409,7 +409,7 @@ class Nsga_II:
             'step_size': self.step_size
         }
 
-        with open(f'../saved_ga/{self.name}/nas_params.json', 'w') as f:
+        with open(f'saved_ga/{self.name}/nas_params.json', 'w') as f:
             f.write(json.dumps(params))
 
     def optimise(self):
