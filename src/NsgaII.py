@@ -174,6 +174,9 @@ class Nsga_II:
         """
         fitness_values = np.zeros((len(pop), 2))
         for i, ind in enumerate(pop):
+
+            genotype = self.format_genotype(ind)
+
             genotype = {key: value for key, value in zip(self.vars, ind)}
             # making sure we have integer values for epochs and rounds
             genotype['epochs'] = round(genotype['epochs'])
@@ -424,6 +427,26 @@ class Nsga_II:
         with open(f'saved_ga/{self.name}/nas_params.json', 'w') as f:
             f.write(json.dumps(params))
 
+    def format_genotype(self, ind):
+        """format the individual into a genotype accepted by capsnet model
+
+        Args:
+            ind (np.array): indivudual to be formated
+
+        Returns:
+            dict: formated genotype
+        """
+        genotype = {key: value for key, value in zip(self.vars, ind)}
+        genotype['epochs'] = round(genotype['epochs'])
+        genotype['r'] = round(genotype['r'])
+        genotype['no_of_conv_kernels'] = round(genotype['no_of_conv_kernels'])
+        genotype['secondary_capsule_vector'] = round(genotype['secondary_capsule_vector'])
+
+        genotype['no_of_primary_capsules'] = 32
+        genotype['primary_capsule_vector'] = 8
+        genotype['no_of_secondary_capsules'] = 10
+        return genotype
+
     def optimise(self):
         """Performs self.n_gen itterations of evolutionary algorithm to optimise population
 
@@ -459,6 +482,7 @@ class Nsga_II:
         pareto_front_index = self.pareto_front_finding(fitness_values, index)
         solutions = pop[pareto_front_index, :]
         self.plot_nsga(metrics)
+        solutions = [self.format_genotype(solution) for solution in solutions]
         print("Optimal solution(s):")
         print(solutions)
         fitness_values = fitness_values[pareto_front_index]
@@ -467,9 +491,8 @@ class Nsga_II:
         print("  Inference    Accuracy")
         print(fitness_values)
         print(f"=== GA done in : {datetime.now() - time_start} ===")
-        self.data.to_csv(f'saved_ga/{self.name}/data.csv')
-        print(pd.DataFrame(self.data))
 
+        pd.DataFrame(self.data).to_csv(f'saved_ga/{self.name}/data.csv')
         self.plot_solutions(fitness_values)
         self.save_solutions(solutions, fitness_values)
         self.save_params()
