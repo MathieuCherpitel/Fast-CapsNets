@@ -1,1 +1,0 @@
-{"Solution 1": {"accuracy": 0.837, "inference": 0.009171492338180542, "params": {"epochs": 5.0, "r": 3.0, "no_of_conv_kernels": 128.0, "secondary_capsule_vector": 44.0, "epsilon": 0.012289794096030593, "m_plus": 0.9425675134601733, "m_minus": 0.10065372328326092, "lambda_": 0.6553830286393483, "alpha": 0.01}}}

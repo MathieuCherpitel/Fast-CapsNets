@@ -47,6 +47,7 @@ class Nsga_II:
         self.train_data = train_data
         self.test_data = test_data
         self.n_runs = n_runs
+        self.data = []
 
         self.n_var = 9
         self.n_conv_kernels = [32, 64, 128, 512]
@@ -113,7 +114,7 @@ class Nsga_II:
 
     def mutation(self, pop):
         """on each itteration, if the mutation occurs,
-        out of 2 randomly selected parents, create 2 offsprings by exchanging one gene between parents
+        select a random parent and changes the value of one of it's genes.
 
         Args:
             pop (np.array): population
@@ -122,17 +123,16 @@ class Nsga_II:
             np.array: offsprings ready to be added to the population
         """
         offsprings = []
-        for i in range(int(self.pop_size / 2)):
+        for _ in range(int(self.pop_size)):
             if self.rate_mutation > np.random.rand():
-                p1, p2 = self.select_random_parents(pop)
-                cutting_point = np.random.randint(0, pop.shape[1])
-                o1 = p1
-                o2 = p2
-                save = p1[cutting_point]
-                o1[cutting_point] = p2[cutting_point]
-                o2[cutting_point] = save
-                offsprings.append(o1)
-                offsprings.append(o2)
+                offspring = pop[np.random.randint(0, pop.shape[0])]
+                index = np.random.randint(0, self.n_var - 1)
+                if index < 4: # special values : epochs, r, no_of_conv_kernels, secondary_capsule_vector
+                    val = np.random.randint(low=self.mins[index], high=self.maxs[index])
+                    offspring[index] = self.n_conv_kernels[val] if index == 2 else val
+                else:
+                    offspring[index] = np.random.uniform(self.mins[index], self.maxs[index])
+                offsprings.append(offspring)
         print(f'mutation created {len(offsprings)} offspring(s)')
         return np.array(offsprings)
 
@@ -185,10 +185,12 @@ class Nsga_II:
             genotype['primary_capsule_vector'] = 8
             genotype['no_of_secondary_capsules'] = 10
 
-            # build model with found genotype
+            # build and train model with found genotype
             model = CapsNet(**genotype)
             print(f'Fitting individual {i + 1}/{len(pop)} with genotype {genotype}')
+            start = time.time()
             model.fit(self.train_data[0], self.train_data[1], tf.keras.optimizers.legacy.Adam(), validation=self.test_data)
+            training_time = time.time() - start
 
             # update the number of epochs used for training in case the model stopped early to avoid overfitting
             ind[0] = model.epochs
@@ -198,11 +200,20 @@ class Nsga_II:
             y_preds = model.predict(self.test_data[0])
             end = time.time()
 
-            inference_time = (end - start) / len(self.test_data[0])
+            inference_time = (end - start) / len(self.test_data[0]) * 1000
             accuracy = accuracy_score(self.test_data[1], y_preds)
 
             fitness_values[i,0] = inference_time
             fitness_values[i,1] = accuracy
+
+            self.data.append({
+                'generation': self.current_gen,
+                'individual index': i,
+                'training time (s)': training_time,
+                'inference time (ms)': inference_time,
+                'accuracy': accuracy,
+                **genotype})
+
         return fitness_values
 
     def pareto_front_finding(self, fitness_values, pop_index):
@@ -367,8 +378,8 @@ class Nsga_II:
             plt.scatter(x, y, label=key)
         ax.grid('on')
         ax.set_xlabel('Accuracy')
-        ax.set_ylabel('Inference')
-        ax.invert_yaxis()
+        ax.set_ylabel('Inference (ms)')
+        # ax.invert_yaxis()
 
     def plot_solutions(self, fitness_values):
         metrics = {}
@@ -379,6 +390,7 @@ class Nsga_II:
             }]
 
         fig, ax = plt.subplots()
+        plt.xlim([0, 1])
         self.plot_individuals(ax, metrics)
 
         legend = ax.legend(bbox_to_anchor=(1, 0.5), loc='center left', ncol=(len(metrics) + 9) // 10)
@@ -418,11 +430,12 @@ class Nsga_II:
         Returns:
             list: Best individuals found
         """
-        self.time_start = datetime.now()
+        time_start = datetime.now()
         pop = self.random_pop()
         metrics = {}
         for i in range(self.n_gen):
             print(f"=== Generation {i+1}/{self.n_gen}")
+            self.current_gen = i + 1
 
             print(f"Len of pop before manipulations : {len(pop)}")
             crossover_offsprings = self.crossover(pop)
@@ -439,7 +452,6 @@ class Nsga_II:
             fitness_values = self.evaluation(pop)
             metrics[f'Generation {i+1}'] = [{"inference": value[0], "accuracy": value[1]} for value in fitness_values]
 
-
             pop = self.selection(pop, fitness_values)
             print(f"Len of pop after selection : {len(pop)}")
         fitness_values = self.evaluation(pop)
@@ -454,23 +466,11 @@ class Nsga_II:
         print("Fitness values:")
         print("  Inference    Accuracy")
         print(fitness_values)
-        print(f"=== GA done : {datetime.now()} ===")
+        print(f"=== GA done in : {datetime.now() - time_start} ===")
+        self.data.to_csv(f'saved_ga/{self.name}/data.csv')
+        print(pd.DataFrame(self.data))
 
         self.plot_solutions(fitness_values)
         self.save_solutions(solutions, fitness_values)
         self.save_params()
-
-
-# Optimal solution(s):
-# [[9.00000000e+00 4.88360436e-02 9.39566399e-01 1.36611055e-01
-#   4.91056369e-01 1.00000000e-04 2.00000000e+00]
-#  [4.00000000e+00 5.49037474e-02 9.48021275e-01 7.78102753e-02
-#   2.94636268e-01 9.37210247e-03 2.00000000e+00]
-#  [1.00000000e+00 5.99024912e-02 9.06820830e-01 9.35568090e-02
-#   2.16236020e-01 8.19128145e-03 2.00000000e+00]]
-# ______________
-# Fitness values:
-#   Inference    Accuracy
-# [[5.57220721 0.95507812]
-#  [5.56180882 0.94335938]
-#  [5.39654398 0.76367188]]
+        return solutions

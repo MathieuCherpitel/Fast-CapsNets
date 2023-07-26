@@ -9,6 +9,7 @@ import seaborn as sn
 
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, classification_report, confusion_matrix
 
+# based on : https://towardsdatascience.com/implementing-capsule-network-in-tensorflow-11e4cca5ecae
 
 class CapsNet(tf.keras.Model):
     def __init__(self, epochs, epsilon, m_minus, m_plus, lambda_, alpha, no_of_conv_kernels, no_of_primary_capsules, primary_capsule_vector, no_of_secondary_capsules, secondary_capsule_vector, r):
