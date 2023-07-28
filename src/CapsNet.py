@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 # based on : https://towardsdatascience.com/implementing-capsule-network-in-tensorflow-11e4cca5ecae
 
 class CapsNet(tf.keras.Model):
-    def __init__(self, epochs, epsilon, m_minus, m_plus, lambda_, alpha, no_of_conv_kernels, no_of_primary_capsules, primary_capsule_vector, no_of_secondary_capsules, secondary_capsule_vector, r):
+    def __init__(self, epochs, epsilon, m_minus, m_plus, lambda_, alpha, no_of_conv_kernels, no_of_primary_capsules, primary_capsule_vector, no_of_secondary_capsules, secondary_capsule_vector, r, dense_1, dense_2):
         super(CapsNet, self).__init__()
         self.epochs = epochs
         self.epsilon = epsilon
@@ -35,8 +35,8 @@ class CapsNet(tf.keras.Model):
             self.convolution = tf.keras.layers.Conv2D(self.no_of_conv_kernels, [9,9], strides=[1,1], name='ConvolutionLayer', activation='relu')
             self.primary_capsule = tf.keras.layers.Conv2D(self.no_of_primary_capsules * self.primary_capsule_vector, [9,9], strides=[2,2], name="PrimaryCapsule")
             self.w = tf.Variable(tf.random_normal_initializer()(shape=[1, 1152, self.no_of_secondary_capsules, self.secondary_capsule_vector, self.primary_capsule_vector]), dtype=tf.float32, name="PoseEstimation", trainable=True)
-            self.dense_1 = tf.keras.layers.Dense(units = 128, activation='relu')
-            self.dense_2 = tf.keras.layers.Dense(units = 512, activation='relu')
+            self.dense_1 = tf.keras.layers.Dense(units = dense_1, activation='relu')
+            self.dense_2 = tf.keras.layers.Dense(units = dense_2, activation='relu')
             self.dense_3 = None
 
         self.build(input_shape=())
@@ -237,9 +237,9 @@ class CapsNet(tf.keras.Model):
                 if train_metrics:
                     pbar.set_postfix_str("Evaluating ...")
                     metrics = self.compute_train_metrics(train_metrics, metrics, X, y, validation)
-                metrics['loss'].append(float(train_loss.numpy()))
+                metrics['loss'].append(float(train_loss.numpy()) * 100)
                 if validation:
-                    metrics['val_loss'].append(float(val_loss.numpy()))
+                    metrics['val_loss'].append(float(val_loss.numpy()) * 100)
                     pbar.set_postfix_str(f"Training loss : {train_loss.numpy():.4f}, Validation loss : {val_loss.numpy():.4f}")
                 else :
                     pbar.set_postfix_str(f"Loss : {train_loss.numpy():.4f}")
