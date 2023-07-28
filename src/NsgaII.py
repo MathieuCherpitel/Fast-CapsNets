@@ -52,7 +52,7 @@ class Nsga_II:
         self.n_var = 9
         self.n_conv_kernels = [32, 64, 128, 512]
         self.vars = ['epochs', 'r', 'no_of_conv_kernels', 'secondary_capsule_vector', 'epsilon', 'm_plus', 'm_minus', 'lambda_', 'alpha']
-        self.mins = [1, 2, 0, 2, 0.01, 0.9, 0.05, 0.1, 0.0001]
+        self.mins = [1, 2, 0, 2, 1e-7, 0.9, 0.05, 0.1, 0.0001]
         self.maxs = [10, 5, 3, 50, 0.1, 0.99, 0.2, 1.0, 0.01]
 
         self.time_start = None

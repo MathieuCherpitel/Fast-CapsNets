@@ -35,8 +35,8 @@ class CapsNet(tf.keras.Model):
             self.convolution = tf.keras.layers.Conv2D(self.no_of_conv_kernels, [9,9], strides=[1,1], name='ConvolutionLayer', activation='relu')
             self.primary_capsule = tf.keras.layers.Conv2D(self.no_of_primary_capsules * self.primary_capsule_vector, [9,9], strides=[2,2], name="PrimaryCapsule")
             self.w = tf.Variable(tf.random_normal_initializer()(shape=[1, 1152, self.no_of_secondary_capsules, self.secondary_capsule_vector, self.primary_capsule_vector]), dtype=tf.float32, name="PoseEstimation", trainable=True)
-            self.dense_1 = tf.keras.layers.Dense(units = 512, activation='relu')
-            self.dense_2 = tf.keras.layers.Dense(units = 1024, activation='relu')
+            self.dense_1 = tf.keras.layers.Dense(units = 128, activation='relu')
+            self.dense_2 = tf.keras.layers.Dense(units = 512, activation='relu')
             self.dense_3 = None
 
         self.build(input_shape=())
