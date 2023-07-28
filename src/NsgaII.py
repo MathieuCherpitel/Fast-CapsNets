@@ -49,13 +49,15 @@ class Nsga_II:
         self.n_runs = n_runs
         self.data = []
 
-        self.n_var = 9
+        self.n_var = 11
         self.n_conv_kernels = [32, 64, 128, 512]
-        self.vars = ['epochs', 'r', 'no_of_conv_kernels', 'secondary_capsule_vector', 'epsilon', 'm_plus', 'm_minus', 'lambda_', 'alpha']
-        self.mins = [1, 2, 0, 2, 1e-7, 0.9, 0.05, 0.1, 0.0001]
-        self.maxs = [10, 5, 3, 50, 0.1, 0.99, 0.2, 1.0, 0.01]
+        self.dense_1 = [128, 256, 512, 768, 1024]
+        self.dense_2 = [256, 512, 768, 1024, 1280, 1536, 1792, 2048]
 
-        self.time_start = None
+
+        self.vars = ['epochs', 'r', 'no_of_conv_kernels', 'secondary_capsule_vector', 'dense_1', 'dense_2', 'epsilon', 'm_plus', 'm_minus', 'lambda_', 'alpha']
+        self.mins = [1, 2, 0, 2, 0, 0, 1e-7, 0.9, 0.05, 0.1, 0.0001]
+        self.maxs = [10, 5, 3, 50, 4, 7, 0.1, 0.99, 0.2, 1.0, 0.01]
 
 
     def random_pop(self):
@@ -66,11 +68,13 @@ class Nsga_II:
         """
         pop = np.zeros((self.pop_size, self.n_var))
         for i in range(self.pop_size):
-            for j in range(0, 4):
+            for j in range(0, 6):
                 pop[i][j] = np.random.randint(self.mins[j], self.maxs[j])
-            for k in range(4, self.n_var):
+            for k in range(6, self.n_var):
                 pop[i][k] = np.random.uniform(self.mins[k], self.maxs[k])
             pop[i][2] = self.n_conv_kernels[int(pop[i][2])]
+            pop[i][4] = self.dense_1[int(pop[i][4])]
+            pop[i][5] = self.dense_2[int(pop[i][5])]
         return pop
 
     # Get two parents from the population
@@ -127,9 +131,16 @@ class Nsga_II:
             if self.rate_mutation > np.random.rand():
                 offspring = pop[np.random.randint(0, pop.shape[0])]
                 index = np.random.randint(0, self.n_var - 1)
-                if index < 4: # special values : epochs, r, no_of_conv_kernels, secondary_capsule_vector
+                if index < 6: # special values : epochs, r, no_of_conv_kernels, secondary_capsule_vector, dense_1, dense_2
                     val = np.random.randint(low=self.mins[index], high=self.maxs[index])
-                    offspring[index] = self.n_conv_kernels[val] if index == 2 else val
+                    if index == 2:
+                        offspring[index] = self.n_conv_kernels[val]
+                    elif index == 4:
+                        offspring[index] = self.dense_1[val]
+                    elif index == 5:
+                        offspring[index] = self.dense_2[val]
+                    else:
+                        offspring[index] = val
                 else:
                     offspring[index] = np.random.uniform(self.mins[index], self.maxs[index])
                 offsprings.append(offspring)
@@ -183,6 +194,8 @@ class Nsga_II:
             genotype['r'] = round(genotype['r'])
             genotype['no_of_conv_kernels'] = round(genotype['no_of_conv_kernels'])
             genotype['secondary_capsule_vector'] = round(genotype['secondary_capsule_vector'])
+            genotype['dense_1'] = round(genotype['dense_1'])
+            genotype['dense_2'] = round(genotype['dense_2'])
 
             genotype['no_of_primary_capsules'] = 32
             genotype['primary_capsule_vector'] = 8
@@ -441,6 +454,8 @@ class Nsga_II:
         genotype['r'] = round(genotype['r'])
         genotype['no_of_conv_kernels'] = round(genotype['no_of_conv_kernels'])
         genotype['secondary_capsule_vector'] = round(genotype['secondary_capsule_vector'])
+        genotype['dense_1'] = round(genotype['dense_1'])
+        genotype['dense_2'] = round(genotype['dense_2'])
 
         genotype['no_of_primary_capsules'] = 32
         genotype['primary_capsule_vector'] = 8
