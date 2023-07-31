@@ -53,9 +53,9 @@ echo "Executing job commands, current working directory is $(pwd)"
 
 for ((i=0; i<runs; i++))
 do
-    python3 src/script.py -n ${name}${i} -d mnist -g $generations -p $pop_size > $RESULTS_DIR/${name}${i}.output
+    python3 src/script.py -n ${name}-${i} -d mnist -g $generations -p $pop_size > $RESULTS_DIR/${name}-${i}.output
 done
 
-echo "This is an example job. It ran on `hostname -s` (as `whoami`)." >> $RESULTS_DIR/${name}${i}.output
-echo "I was allocated the following GPU devices: $CUDA_VISIBLE_DEVICES" >> $RESULTS_DIR/${name}${i}.output
-echo "Output file has been generated, please check $RESULTS_DIR/${name}${i}.output"
+echo "This is an example job. It ran on `hostname -s` (as `whoami`)." >> $RESULTS_DIR/${name}-${i}.output
+echo "I was allocated the following GPU devices: $CUDA_VISIBLE_DEVICES" >> $RESULTS_DIR/${name}-${i}.output
+echo "Output file has been generated, please check $RESULTS_DIR/${name}-${i}.output"
