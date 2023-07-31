@@ -8,7 +8,7 @@
 ## Job name
 #SBATCH -J nas-mnist
 ## Run time: "hours:minutes:seconds", "days-hours"
-#SBATCH --time=3-20
+#SBATCH --time=5-20
 ## Memory limit (in megabytes). Total --mem or amount per cpu --mem-per-cpu
 #SBATCH --mem-per-cpu=45634
 ## GPU requirements
@@ -39,17 +39,22 @@ mkdir -p "$RESULTS_DIR"
 #  Application launch commands
 #-------------------------------
 
+while getopts n:g:p:r: flag
+do
+    case "${flag}" in
+        n) name=${OPTARG};;
+        g) generations=${OPTARG};;
+        p) pop_size=${OPTARG};;
+        r) runs=${OPTARG};;
+    esac
+done
+
 echo "Executing job commands, current working directory is $(pwd)"
 
-python3 src/script.py -n mnist0-hpc -d mnist -g 10 -p 10 > $RESULTS_DIR/mnist0-hpc.output
-python3 src/script.py -n mnist1-hpc -d mnist -g 10 -p 10 > $RESULTS_DIR/mnist1-hpc.output
-python3 src/script.py -n mnist2-hpc -d mnist -g 10 -p 10 > $RESULTS_DIR/mnist2-hpc.output
-python3 src/script.py -n mnist4-hpc -d mnist -g 10 -p 10 > $RESULTS_DIR/mnist4-hpc.output
-python3 src/script.py -n mnist5-hpc -d mnist -g 10 -p 10 > $RESULTS_DIR/mnist5-hpc.output
-python3 src/script.py -n mnist6-hpc -d mnist -g 10 -p 10 > $RESULTS_DIR/mnist6-hpc.output
-python3 src/script.py -n mnist7-hpc -d mnist -g 10 -p 10 > $RESULTS_DIR/mnist7-hpc.output
-python3 src/script.py -n mnist8-hpc -d mnist -g 10 -p 10 > $RESULTS_DIR/mnist8-hpc.output
-python3 src/script.py -n mnist9-hpc -d mnist -g 10 -p 10 > $RESULTS_DIR/mnist9-hpc.output
+for ((i=0; i<runs; i++))
+do
+    python3 src/script.py -n $name -d mnist -g $generations -p $pop_size > $RESULTS_DIR/${name}_${i}.output
+done
 
 echo "This is an example job. It ran on `hostname -s` (as `whoami`)." >> $RESULTS_DIR/mnist-hpc.output
 echo "I was allocated the following GPU devices: $CUDA_VISIBLE_DEVICES" >> $RESULTS_DIR/mnist-hpc.output
