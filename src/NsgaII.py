@@ -421,7 +421,7 @@ class Nsga_II:
             res[f'Solution {index + 1}'] = {
                 'accuracy': fitnesses[index][1],
                 'inference': fitnesses[index][0],
-                'params': {key: value for key, value in zip(self.vars, solutions[index])}
+                'params': {**solutions[index]}
             }
 
         with open(f'saved_ga/{self.name}/solutions.json', 'w') as f:
