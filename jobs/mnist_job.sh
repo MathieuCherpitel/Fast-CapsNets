@@ -53,7 +53,7 @@ echo "Executing job commands, current working directory is $(pwd)"
 
 for ((i=0; i<runs; i++))
 do
-    python3 src/script.py -n $name -d mnist -g $generations -p $pop_size > $RESULTS_DIR/${name}_${i}.output
+    python3 src/script.py -n ${name}_${i} -d mnist -g $generations -p $pop_size > $RESULTS_DIR/${name}_${i}.output
 done
 
 echo "This is an example job. It ran on `hostname -s` (as `whoami`)." >> $RESULTS_DIR/mnist-hpc.output
