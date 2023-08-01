@@ -1,4 +1,4 @@
-name: smi
+name: linux-capsnet
 channels:
   - nvidia
   - defaults
@@ -87,4 +87,3 @@ dependencies:
       - werkzeug==2.3.6
       - wrapt==1.14.1
       - zipp==3.16.1
-prefix: /users/mc2091/.local/share/flight/env/conda+default/envs/smi
