@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 
-(X_train, y_train), (X_test , y_test) = load_mnist(size=(3000, 1000))
+(X_train, y_train), (X_test , y_test) = load_mnist()
 n_rounds = 10
 
 directory = 'res'
