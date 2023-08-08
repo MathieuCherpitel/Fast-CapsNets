@@ -1,0 +1,1 @@
+{"epochs": 5, "epsilon": 0.08411185848750914, "m_minus": 0.1648052052496743, "m_plus": 0.9504174153527706, "lambda_": 0.6831030565866469, "alpha": 0.006858184909559632, "no_of_conv_kernels": 64, "no_of_primary_capsules": 32, "no_of_secondary_capsules": 10, "primary_capsule_vector": 8, "secondary_capsule_vector": 6, "r": 2}
