@@ -1,0 +1,8 @@
+=== Generation 1/10
+Len of pop before manipulations : 50
+crossover created 26 offspring(s)
+mutation created 6 offspring(s)
+local search created 10 offspring(s)
+Len of pop after manipulations : 92
+Fitting individual 1/92 with genotype {'epochs': 1, 'r': 2, 'no_of_conv_kernels': 64, 'secondary_capsule_vector': 31, 'dense_1': 768, 'dense_2': 1536, 'epsilon': 0.02500237349516626, 'm_plus': 0.9665671958649753, 'm_minus': 0.06718362749359487, 'lambda_': 0.5837423976792068, 'alpha': 0.0015369832899853337, 'no_of_primary_capsules': 18, 'primary_capsule_vector': 8, 'no_of_secondary_capsules': 10}
+Fitting individual 2/92 with genotype {'epochs': 9, 'r': 2, 'no_of_conv_kernels': 64, 'secondary_capsule_vector': 36, 'dense_1': 256, 'dense_2': 768, 'epsilon': 0.0013128403942357203, 'm_plus': 0.9348266359899121, 'm_minus': 0.16328033677872428, 'lambda_': 0.7917935068638856, 'alpha': 0.006893853976681393, 'no_of_primary_capsules': 18, 'primary_capsule_vector': 8, 'no_of_secondary_capsules': 10}

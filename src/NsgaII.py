@@ -197,7 +197,9 @@ class Nsga_II:
             genotype['dense_1'] = round(genotype['dense_1'])
             genotype['dense_2'] = round(genotype['dense_2'])
 
-            genotype['no_of_primary_capsules'] = 32
+            # genotype['no_of_primary_capsules'] = 32
+            genotype['no_of_primary_capsules'] = 18
+
             genotype['primary_capsule_vector'] = 8
             genotype['no_of_secondary_capsules'] = 10
 
@@ -457,7 +459,9 @@ class Nsga_II:
         genotype['dense_1'] = round(genotype['dense_1'])
         genotype['dense_2'] = round(genotype['dense_2'])
 
-        genotype['no_of_primary_capsules'] = 32
+        # genotype['no_of_primary_capsules'] = 32
+        genotype['no_of_primary_capsules'] = 18
+
         genotype['primary_capsule_vector'] = 8
         genotype['no_of_secondary_capsules'] = 10
         return genotype
