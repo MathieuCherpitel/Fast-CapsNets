@@ -20,3 +20,5 @@ conda env create -f <linux-environment.yml> or <linux-environment.yml>
 We used a NSGA-II algorithm to optimise CapsNet on inference time and accuracy. Here are the results on MNIST dataset compared to our baselines models.
 
 ![alt text](https://github.com/MathieuCherpitel/Fast-CapsNets/blob/main/res/accuracy_comparison.png?raw=true)
+![alt text](https://github.com/MathieuCherpitel/Fast-CapsNets/blob/main/res/inference_time.png?raw=true)
+![alt text](https://github.com/MathieuCherpitel/Fast-CapsNets/blob/main/res/training_metrics.png?raw=true)
